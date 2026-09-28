@@ -278,7 +278,7 @@
   // ---------- Arranque ----------
   (async () => {
     try { const r = await Almacen.init(); Store.load(r.data); } catch (e) { console.error(e); }
-    const first = visible()[0]; sel = first ? first.id : null;
+    sel = null; // arranca siempre en la pantalla principal
     renderBanner(); renderList(); renderEditor(); renderState('saved');
   })();
 })();
