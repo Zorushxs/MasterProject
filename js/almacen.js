@@ -17,18 +17,34 @@ const Almacen = (() => {
     try { const d = await db(); await new Promise(ok => { const t = d.transaction('kv', 'readwrite'); t.objectStore('kv').put(v, k); t.oncomplete = ok; t.onerror = ok; }); } catch {}
   }
   async function readFile() { const t = await (await handle.getFile()).text(); return t.trim() ? JSON.parse(t) : null; }
+  // Lee el archivo; si ya no existe, olvida la referencia en vez de recrearlo al guardar.
+  async function safeRead() {
+    try { return { ok: true, data: await readFile() }; }
+    catch (e) {
+      if (e.name === 'NotFoundError') { handle = null; await kvSet('handle', null); mode = 'local'; return { ok: false }; }
+      throw e;
+    }
+  }
   const readLocal = () => { try { return JSON.parse(localStorage.getItem(LS)); } catch { return null; } };
 
   async function init() {
     handle = canFile ? await kvGet('handle') : null;
     if (handle) {
-      if (await handle.queryPermission({ mode: 'readwrite' }) === 'granted') { mode = 'file'; return { mode, data: await readFile() }; }
+      if (await handle.queryPermission({ mode: 'readwrite' }) === 'granted') {
+        const r = await safeRead();
+        if (r.ok) { mode = 'file'; return { mode, data: r.data }; }
+        return { mode: 'local', data: readLocal() };
+      }
       mode = 'permiso'; return { mode, data: readLocal() };
     }
     mode = 'local'; return { mode, data: readLocal() };
   }
   async function reconnect() {
-    if (await handle.requestPermission({ mode: 'readwrite' }) === 'granted') { mode = 'file'; return { mode, data: await readFile() }; }
+    if (await handle.requestPermission({ mode: 'readwrite' }) === 'granted') {
+      const r = await safeRead();
+      if (r.ok) { mode = 'file'; return { mode, data: r.data }; }
+      return { mode: 'local', data: readLocal() };
+    }
     return { mode, data: null };
   }
   async function open() {
