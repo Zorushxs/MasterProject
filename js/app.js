@@ -113,11 +113,12 @@
       <div class="fgroup"><span class="fl">Etiquetas</span>${tagChips || '<span class="fl">Aún no hay etiquetas</span>'}</div>
       ${anyF() ? '<button class="mini" data-hclear>Limpiar filtros</button>' : ''}</div>`;
   }
+  const ORDEN_ESTADO = { curso: 0, pausado: 1, idea: 2, terminado: 3 };
   function visible() {
     return Store.projects
       .filter(p => (filt === 'todos' || p.status === filt) &&
         (!q || [p.name, p.description, p.notes, p.tags.join(' ')].join(' ').toLowerCase().includes(q)))
-      .sort((a, b) => b.updated.localeCompare(a.updated));
+      .sort((a, b) => ORDEN_ESTADO[a.status] - ORDEN_ESTADO[b.status] || b.updated.localeCompare(a.updated));
   }
   function renderFilters() {
     const opts = [['todos', 'Todos'], ...Object.entries(ESTADOS)];
