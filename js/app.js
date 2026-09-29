@@ -98,6 +98,21 @@
   $('#themeBtn').onclick = () => setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
 
   // ---------- Lista ----------
+  // Filtros de la pantalla principal: dentro de cada grupo basta con cumplir uno; entre grupos deben cumplirse todos.
+  const hf = { status: new Set(), priority: new Set(), tags: new Set() };
+  const anyF = () => hf.status.size + hf.priority.size + hf.tags.size > 0;
+  const bySearch = c => !q || [c.name, c.description, c.notes, c.tags.join(' ')].join(' ').toLowerCase().includes(q);
+  const matches = c => (!hf.status.size || hf.status.has(c.status)) && (!hf.priority.size || hf.priority.has(c.priority)) &&
+    (!hf.tags.size || c.tags.some(t => hf.tags.has(t.toLowerCase())));
+  function filterBar(allTags) {
+    const chip = (g, v, label) => `<button class="chip${hf[g].has(v) ? ' on' : ''}" data-hf="${g}" data-v="${esc(v)}" aria-pressed="${hf[g].has(v)}">${esc(label)}</button>`;
+    const tagChips = [...allTags].sort((a, b) => a[1].localeCompare(b[1], 'es')).map(([k, l]) => chip('tags', k, l)).join('');
+    return `<div class="hfilters">
+      <div class="fgroup"><span class="fl">Estado</span>${Object.entries(ESTADOS).map(([k, l]) => chip('status', k, l)).join('')}</div>
+      <div class="fgroup"><span class="fl">Prioridad</span>${Object.entries(PRIOS).map(([k, l]) => chip('priority', k, l)).join('')}</div>
+      <div class="fgroup"><span class="fl">Etiquetas</span>${tagChips || '<span class="fl">Aún no hay etiquetas</span>'}</div>
+      ${anyF() ? '<button class="mini" data-hclear>Limpiar filtros</button>' : ''}</div>`;
+  }
   function visible() {
     return Store.projects
       .filter(p => (filt === 'todos' || p.status === filt) &&
@@ -136,11 +151,24 @@
         <div class="meta"><span class="st"><i class="dot s-${c.status}"></i>${ESTADOS[c.status]}</span>
           ${c.priority === 'alta' ? '<b class="hi">Prioridad alta</b>' : ''}
           ${c.tags.slice(0, 3).map(t => `<span class="tag">${esc(t)}</span>`).join('')}</div></button>`;
-      const cards = visible().map(card).join('');
+      const pool = Store.projects.filter(bySearch).sort((a, b) => b.updated.localeCompare(a.updated));
+      const allTags = new Map();
+      Store.projects.forEach(c => c.tags.forEach(t => { const k = t.toLowerCase(); if (!allTags.has(k)) allTags.set(k, t); }));
+      hf.tags.forEach(t => { if (!allTags.has(t)) hf.tags.delete(t); }); // olvida etiquetas que ya no existen
+      const grid = list => `<div class="cards">${list.join('')}</div>`;
+      let body;
+      if (!pool.length) body = '<p class="none">Nada coincide con la búsqueda.</p>';
+      else if (!anyF()) body = grid(pool.map(card));
+      else {
+        const ok = pool.filter(matches), no = pool.filter(c => !matches(c));
+        body = `<h3 class="sec first">Coinciden con los filtros (${ok.length})</h3>` +
+          (ok.length ? grid(ok.map(card)) : '<p class="none">Ningún proyecto cumple los filtros.</p>') +
+          (no.length ? `<h3 class="sec">No coinciden con los filtros (${no.length})</h3>` + grid(no.map(c => card(c).replace('class="card"', 'class="card dim"'))) : '');
+      }
       ed.innerHTML = `<div class="empty${has ? ' has' : ''}"><h2>${has ? 'Elige un proyecto' : 'Crea tu primer proyecto'}</h2>
         <p>${has ? 'Selecciónalo en la lista o en las tarjetas para verlo y editarlo.' : 'Todo lo que escribas se guarda solo.'}</p>
         <button class="primary" id="emptyNew">Nuevo proyecto</button></div>` +
-        (has ? `<div class="cards">${cards || '<p class="none">Nada coincide con la búsqueda.</p>'}</div>` : '');
+        (has ? filterBar(allTags) + body : '');
       $('#emptyNew').onclick = create; return;
     }
     const sel_ = (f, o, v) => `<select data-f="${f}">${Object.entries(o).map(([k, l]) => `<option value="${k}"${k === v ? ' selected' : ''}>${l}</option>`).join('')}</select>`;
@@ -172,6 +200,9 @@
   }
   $('#editor').addEventListener('click', async e => {
     const c = e.target.closest('[data-open]'); if (c) { sel = c.dataset.open; renderList(); renderEditor(); return; }
+    const h = e.target.closest('[data-hf]');
+    if (h) { const s = hf[h.dataset.hf], v = h.dataset.v; s.has(v) ? s.delete(v) : s.add(v); renderEditor(); return; }
+    if (e.target.closest('[data-hclear]')) { Object.values(hf).forEach(s => s.clear()); renderEditor(); return; }
     const b = e.target.closest('[data-act]'), pr = Store.get(sel); if (!b || !pr) return;
     const act = b.dataset.act, id = b.dataset.id;
     try {

@@ -134,3 +134,11 @@ textarea { resize: vertical; line-height: 1.6; }
 .fr-stage { position: relative; width: min(860px, calc(100vw - 48px)); aspect-ratio: 3 / 1; }
 .fr-stage img { position: absolute; max-width: none; pointer-events: none; }
 .fr-mask { position: absolute; inset: 0; pointer-events: none; outline: 2px solid var(--accent); box-shadow: 0 0 0 200vmax rgba(8,10,16,.72); }
+
+.hfilters { display: flex; flex-direction: column; gap: 10px; margin: 0 0 22px; padding: 14px 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; align-items: flex-start; }
+.fgroup { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.fl { color: var(--mute); font-size: 13px; min-width: 74px; }
+.sec { margin: 30px 0 12px; padding-top: 18px; border-top: 1px solid var(--line); font: 600 15px var(--sans); color: var(--mute); }
+.sec.first { margin-top: 4px; padding-top: 0; border-top: 0; }
+.card.dim { opacity: .5; }
+.card.dim:hover { opacity: 1; }
