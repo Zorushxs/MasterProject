@@ -34,9 +34,9 @@
   box.addEventListener('click', e => {
     const a = e.target.closest('[data-lb]'); if (!a) return;
     const k = a.dataset.lb, pr = Store.get(sel);
-    if (k === 'close' || (k === 'bg' && e.target === a)) { lb = null; renderLB(); }
-    else if (k === 'prev') { lb--; renderLB(); }
-    else if (k === 'next') { lb++; renderLB(); }
+    if (k === 'close' || (k === 'bg' && e.target === a)) { history.back(); }
+    else if (k === 'prev') { lb--; renderLB(); history.replaceState({ v: 'lb', id: sel, lb }, ''); }
+    else if (k === 'next') { lb++; renderLB(); history.replaceState({ v: 'lb', id: sel, lb }, ''); }
     else if (k === 'cover' || k === 'reframe') startFrame(lb);
     else if (k === 'fcancel') { fr = null; renderLB(); }
     else if (k === 'fsave' && pr) {
@@ -47,12 +47,13 @@
     else if (k === 'del' && pr && confirm('¿Quitar esta imagen del proyecto?')) {
       const im = [...pr.images]; Store.update(sel, lb === 0 ? { images: (im.splice(lb, 1), im), coverPos: { x: 50, y: 50 } } : { images: (im.splice(lb, 1), im) });
       lb = Math.max(0, Math.min(lb, im.length - 1)); renderLB(); renderEditor();
+      if (im.length) history.replaceState({ v: 'lb', id: sel, lb }, ''); else history.back();
     }
   });
   document.addEventListener('keydown', e => {
     if (fr) { if (e.key === 'Escape') { fr = null; renderLB(); } return; }
     if (lb === null) return;
-    if (e.key === 'Escape') { lb = null; renderLB(); }
+    if (e.key === 'Escape') history.back();
     else if (e.key === 'ArrowLeft') { lb--; renderLB(); }
     else if (e.key === 'ArrowRight') { lb++; renderLB(); }
   });
@@ -96,6 +97,25 @@
   const saved = (() => { try { return localStorage.getItem('proyectos:tema'); } catch { return null; } })();
   setTheme(saved || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
   $('#themeBtn').onclick = () => setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
+
+
+  // ---------- Navegación (para que "atrás" del móvil no cierre la app) ----------
+  function openProject(id) {
+    sel = id;
+    if (history.state && history.state.v === 'p') history.replaceState({ v: 'p', id }, '');
+    else history.pushState({ v: 'p', id }, '');
+    renderList(); renderEditor();
+  }
+  function goHome() {
+    if (history.state && history.state.v === 'p') history.back();
+    else { sel = null; renderList(); renderEditor(); }
+  }
+  window.addEventListener('popstate', e => {
+    const st = e.state;
+    sel = (st && (st.v === 'p' || st.v === 'lb') && Store.get(st.id)) ? st.id : null;
+    lb = (st && st.v === 'lb') ? st.lb : null; fr = null;
+    renderList(); renderEditor(); renderLB();
+  });
 
   // ---------- Lista ----------
   // Filtros de la pantalla principal: dentro de cada grupo basta con cumplir uno; entre grupos deben cumplirse todos.
@@ -196,18 +216,18 @@
       <div class="foot"><span>Creado el ${new Date(p.created).toLocaleDateString('es-ES')}</span><button class="danger" id="delBtn">Eliminar proyecto</button></div>`;
     $('#delBtn').onclick = () => {
       if (!confirm(`¿Eliminar «${p.name || 'Sin nombre'}»? No se puede deshacer.`)) return;
-      Store.remove(p.id); sel = null; renderList(); renderEditor();
+      Store.remove(p.id); goHome();
     };
   }
   $('#editor').addEventListener('click', async e => {
-    const c = e.target.closest('[data-open]'); if (c) { sel = c.dataset.open; renderList(); renderEditor(); return; }
+    const c = e.target.closest('[data-open]'); if (c) { openProject(c.dataset.open); return; }
     const h = e.target.closest('[data-hf]');
     if (h) { const s = hf[h.dataset.hf], v = h.dataset.v; s.has(v) ? s.delete(v) : s.add(v); renderEditor(); return; }
     if (e.target.closest('[data-hclear]')) { Object.values(hf).forEach(s => s.clear()); renderEditor(); return; }
     const b = e.target.closest('[data-act]'), pr = Store.get(sel); if (!b || !pr) return;
     const act = b.dataset.act, id = b.dataset.id;
     try {
-      if (act === 'lb') { lb = +b.dataset.i; renderLB();
+      if (act === 'lb') { lb = +b.dataset.i; renderLB(); history.pushState({ v: 'lb', id: sel, lb }, '');
       } else if (act === 'frame') { startFrame(0);
       } else if (act === 'img-add') {
         const files = await pick('image/*', true), imgs = [...pr.images];
@@ -243,14 +263,14 @@
   });
 
   function create() {
-    const p = Store.add(); sel = p.id; q = ''; filt = 'todos'; $('#search').value = '';
-    renderList(); renderEditor(); const n = document.querySelector('.title'); n && n.focus();
+    const p = Store.add(); q = ''; filt = 'todos'; $('#search').value = '';
+    openProject(p.id); const n = document.querySelector('.title'); n && n.focus();
   }
   $('#newBtn').onclick = create;
-  $('#homeBtn').onclick = () => { sel = null; q = ''; filt = 'todos'; $('#search').value = ''; renderList(); renderEditor(); };
+  $('#homeBtn').onclick = () => { q = ''; filt = 'todos'; $('#search').value = ''; goHome(); };
   $('#search').oninput = e => { q = e.target.value.trim().toLowerCase(); renderList(); };
   $('#filters').onclick = e => { const b = e.target.closest('[data-f]'); if (b) { filt = b.dataset.f; renderList(); } };
-  $('#list').onclick = e => { const b = e.target.closest('[data-id]'); if (b) { sel = b.dataset.id; renderList(); renderEditor(); } };
+  $('#list').onclick = e => { const b = e.target.closest('[data-id]'); if (b) openProject(b.dataset.id); };
 
   // ---------- Estado de guardado y archivo ----------
   function renderState(s) {
@@ -279,9 +299,9 @@
   async function connect(fn) {
     try {
       const r = await fn();
-      if (r.data && r.data.projects && r.data.projects.length) { Store.load(r.data); sel = null; }
+      if (r.data && r.data.projects && r.data.projects.length) Store.load(r.data);
       else if (r.data === null || r.data === undefined) await Store.flush();
-      renderBanner(); renderList(); renderEditor(); renderState('saved');
+      renderBanner(); goHome(); renderState('saved');
     } catch (e) { if (e.name !== 'AbortError') alert('No se pudo acceder al archivo: ' + e.message); }
   }
   $('#fileBtn').onclick = () => Almacen.canFile
@@ -302,7 +322,7 @@
       const d = JSON.parse(await f.text());
       if (!Array.isArray(d.projects)) throw new Error('El archivo no tiene una lista "projects".');
       if (!confirm('Esto reemplaza tus proyectos actuales por los del archivo. ¿Continuar?')) return;
-      Store.load(d); await Store.flush(); sel = null; renderList(); renderEditor(); renderState('saved');
+      Store.load(d); await Store.flush(); goHome(); renderState('saved');
     } catch (err) { alert('No se pudo importar: ' + err.message); }
     e.target.value = '';
   };
@@ -311,6 +331,7 @@
   (async () => {
     try { const r = await Almacen.init(); Store.load(r.data); } catch (e) { console.error(e); }
     sel = null; // arranca siempre en la pantalla principal
+    history.replaceState({ v: 'home' }, '');
     renderBanner(); renderList(); renderEditor(); renderState('saved');
   })();
 })();
