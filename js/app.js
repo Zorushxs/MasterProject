@@ -256,7 +256,12 @@
   $('#editor').addEventListener('input', e => {
     const f = e.target.dataset.f; if (!f || !sel) return;
     let v = e.target.value;
-    if (f === 'tags') v = v.split(',').map(t => t.trim()).filter(Boolean);
+    if (f === 'tags') {
+      const seen = new Set();
+      v = v.split(/[,\s]+/).map(t => t.trim()).filter(Boolean).filter(t => {
+        const k = t.toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true;
+      });
+    }
     Store.update(sel, { [f]: v });
     if (f === 'link') { const a = $('#lkOpen'); a.href = v; a.hidden = !v; }
     renderList();
