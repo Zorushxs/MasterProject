@@ -9,7 +9,11 @@
 </head>
 <body>
 <div class="app">
-  <aside class="side">
+  <button id="sideToggle" class="side-toggle" aria-expanded="false" aria-controls="side">
+    <span>Proyectos</span><i class="chev">▾</i>
+  </button>
+  <div id="sideBackdrop" class="side-backdrop" hidden></div>
+  <aside class="side" id="side">
     <div class="side-top">
       <h1><button id="homeBtn" class="home" title="Ir al inicio">Proyectos</button></h1>
       <button id="themeBtn" class="ghost" title="Cambiar tema" aria-label="Cambiar tema">◐</button>

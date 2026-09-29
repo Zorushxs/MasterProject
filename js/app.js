@@ -51,6 +51,7 @@
     }
   });
   document.addEventListener('keydown', e => {
+    if (sideEl.classList.contains('open')) { if (e.key === 'Escape') closeSide(); return; }
     if (fr) { if (e.key === 'Escape') { fr = null; renderLB(); } return; }
     if (lb === null) return;
     if (e.key === 'Escape') history.back();
@@ -98,15 +99,30 @@
   setTheme(saved || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
   $('#themeBtn').onclick = () => setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
 
+  // ---------- Menú desplegable (móvil) ----------
+  const sideToggle = $('#sideToggle'), sideEl = $('#side'), backdrop = $('#sideBackdrop');
+  function closeSide() {
+    sideEl.classList.remove('open'); sideToggle.setAttribute('aria-expanded', 'false');
+    backdrop.classList.remove('show'); backdrop.hidden = true;
+  }
+  function openSide() {
+    sideEl.classList.add('open'); sideToggle.setAttribute('aria-expanded', 'true'); backdrop.hidden = false;
+    requestAnimationFrame(() => backdrop.classList.add('show'));
+  }
+  sideToggle.onclick = () => sideEl.classList.contains('open') ? closeSide() : openSide();
+  backdrop.onclick = closeSide;
+
 
   // ---------- Navegación (para que "atrás" del móvil no cierre la app) ----------
   function openProject(id) {
+    closeSide();
     sel = id;
     if (history.state && history.state.v === 'p') history.replaceState({ v: 'p', id }, '');
     else history.pushState({ v: 'p', id }, '');
     renderList(); renderEditor();
   }
   function goHome() {
+    closeSide();
     if (history.state && history.state.v === 'p') history.back();
     else { sel = null; renderList(); renderEditor(); }
   }
