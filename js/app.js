@@ -1,7 +1,7 @@
 // Interfaz: lista, editor, buscador, filtros, archivo y tema.
 (() => {
   const $ = s => document.querySelector(s);
-  const ESTADOS = { idea: 'Idea', curso: 'En curso', pausado: 'Pausado', terminado: 'Terminado' };
+  const ESTADOS = { idea: 'Idea', porEmpezar: 'Por empezar', curso: 'En curso', pausado: 'Pausado', terminado: 'Terminado' };
   const PRIOS = { baja: 'Baja', media: 'Media', alta: 'Alta' };
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   let sel = null, q = '', filt = 'todos', docsOpen = false, shown = null,
@@ -149,7 +149,7 @@
       <div class="fgroup"><span class="fl">Etiquetas</span>${tagChips || '<span class="fl">Aún no hay etiquetas</span>'}</div>
       ${anyF() ? '<button class="mini" data-hclear>Limpiar filtros</button>' : ''}</div>`;
   }
-  const ORDEN_ESTADO = { curso: 0, pausado: 1, idea: 2, terminado: 3 };
+  const ORDEN_ESTADO = { curso: 0, porEmpezar: 1, pausado: 2, idea: 3, terminado: 4 };
   function visible() {
     return Store.projects
       .filter(p => (filt === 'todos' || p.status === filt) &&
